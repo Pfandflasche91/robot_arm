@@ -2,59 +2,79 @@
 # -*- coding: utf-8 -*-
 
 import RPi.GPIO as GPIO
-from serial import Serial
 import time
+from rupcom import Serial_com
 
-ser=Serial("/dev/ttyAMA0")
-ser.baudrate=9600
+class motor():    
+    def __init__(self,phaseA,phaseB,phaseC,phaseD):
+        self.phaseA=phaseA
+        self.phaseB=phaseB
+        self.phaseC=phaseC
+        self.phaseD=phaseD
+        self.phase_state=8  #ABCD = 1000
+    def motorinit(self):
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(self.phaseA,GPIO.OUT)
+        GPIO.setup(self.phaseB,GPIO.OUT)
+        GPIO.setup(self.phaseC,GPIO.OUT)
+        GPIO.setup(self.phaseD,GPIO.OUT)
+        print("motorinit successfully")
+    def motordeinit(self):
+        GPIO.cleanup()
+        print("motordeinit successfully")  
+    def onestep(self,direction):
+        if direction == 'cw':
+            if self.phase_state==1:
+                self.phase_state=8
+            else:
+                self.phase_state=self.phase_state >> 1
+            if self.phase_state==1:
+                GPIO.output(self.phaseA,GPIO.LOW)
+                GPIO.output(self.phaseB,GPIO.LOW)
+                GPIO.output(self.phaseC,GPIO.LOW)
+                GPIO.output(self.phaseD,GPIO.HIGH)
+            if self.phase_state==2:
+                GPIO.output(self.phaseA,GPIO.LOW)
+                GPIO.output(self.phaseB,GPIO.LOW)
+                GPIO.output(self.phaseC,GPIO.HIGH)
+                GPIO.output(self.phaseD,GPIO.LOW)
+            if self.phase_state==4:
+                GPIO.output(self.phaseA,GPIO.LOW)
+                GPIO.output(self.phaseB,GPIO.HIGH)
+                GPIO.output(self.phaseC,GPIO.LOW)
+                GPIO.output(self.phaseD,GPIO.LOW)
+            if self.phase_state==8:
+                GPIO.output(self.phaseA,GPIO.HIGH)
+                GPIO.output(self.phaseB,GPIO.LOW)
+                GPIO.output(self.phaseC,GPIO.LOW)
+                GPIO.output(self.phaseD,GPIO.LOW)
 
+    def move(self,steps,direction):
+        for i in range(steps):
+            self.onestep(direction)
+            time.sleep(0.003) 
+            
 
-motorPins = (12, 16, 18, 22) #define pins connected   
-CCWStep = (0x01,0x02,0x04,0x08) #define power supply order for coil for rotating anticlockwise 
-CWStep = (0x08,0x04,0x02,0x01)  #define power supply order for coil for rotating clockwise
- 
-def motorinit():
-    GPIO.setmode(GPIO.BOARD)
-    for pin in motorPins:
-        GPIO.setup(pin,GPIO.OUT)
-    print("motorinit successfully")
-
-def motordeinit():
-    GPIO.cleanup()
-    print("motordeinit successfully")    
-
-#as for four phase stepping motor, four steps is a cycle. the function is used to drive the stepping motor clockwise or anticlockwise to take four steps    
-def moveOnePeriod(direction,ms):    
-    for j in range(0,4,1):      #cycle for power supply order
-        for i in range(0,4,1):  #assign to each pin, a total of 4 pins
-            if (direction == 1):#power supply order clockwise
-                GPIO.output(motorPins[i],((CCWStep[j] == 1<<i) and GPIO.HIGH or GPIO.LOW))
-            else :              #power supply order anticlockwise
-                GPIO.output(motorPins[i],((CWStep[j] == 1<<i) and GPIO.HIGH or GPIO.LOW))
-        if(ms<3):       #the delay can not be less than 3ms, otherwise it will exceed speed limit of the motor
-            ms = 3
-        time.sleep(ms*0.001)
 
 def motorStop():
     for i in range(0,4,1):
         GPIO.output(motorPins[i],GPIO.LOW)
 
             
-def moveSteps(direction, ms, steps):
-     for i in range(steps):
-         moveOnePeriod(direction, ms)
 
 if __name__ == "__main__":
-    motorinit()
+    ser=Serial_com()
+    ser.open("/dev/ttyAMA0",9600)
+    zmotor=motor(12, 16, 18, 22)
+    zmotor.motorinit()
     try:
-       while(True):
-        data=ser.read()
-        if data[0] == 97:
-            print(data[0])
-            moveSteps(1,3,512)
-        if data[0] == 98:
-            print(data[0])
-            moveSteps(0,3,512)
+       while True:
+           message=ser.read()
+           print(message)
+           #zmotor.move(2048,'cw')
+           time.sleep(2)
+           
     except KeyboardInterrupt:
-        motordeinit()
+        zmotor.motordeinit()
+        ser.close()
 
