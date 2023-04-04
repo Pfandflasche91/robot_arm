@@ -11,7 +11,7 @@ class motor():
         self.phaseC=phaseC
         self.phaseD=phaseD
         self.phase_state=8  #ABCD = 1000
-        #self.position=0
+        self.position=0
         self.steps=0
     def motorinit(self):
         if GPIO.getmode() == None:
@@ -65,14 +65,15 @@ class motor():
             if self.stop==True:
                 break
             if direction=='cw':
-                #self.position+=360/2048
+                self.position+=360/2048
                 self.steps+=1
             else:
-                #self.position-=360/2048
+                self.position-=360/2048
                 self.steps-=1
             self.onestep(direction)
             time.sleep(0.005) 
          self.motorStop()
+         print(self.position)
          print(self.steps)
    
     def motorStop(self):
